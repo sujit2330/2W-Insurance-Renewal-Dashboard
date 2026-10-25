@@ -1,0 +1,1136 @@
+table 'RAW DATA(JAN-SEPT)'
+	lineageTag: ae2ebe0a-948a-4210-8915-6d945dc9cec9
+
+	measure Attempted =
+			
+			CALCULATE(
+			    COUNTROWS('RAW DATA(JAN-SEPT)'),
+			    'RAW DATA(JAN-SEPT)'[callstatus] = "Attempted"
+			)
+		formatString: 0
+		lineageTag: dfee2c9c-493d-4090-a6c0-547ff9400c3a
+
+	measure Quote_sent = CALCULATE(COUNTROWS('RAW DATA(JAN-SEPT)'),'RAW DATA(JAN-SEPT)'[quote_generated]="YES")
+		formatString: 0
+		lineageTag: ddbae2bd-c54b-4f07-8c76-34ab23f26e52
+
+	measure Link_sent_count =
+			
+			CALCULATE(
+			    COUNTROWS('RAW DATA(JAN-SEPT)'),
+			    'RAW DATA(JAN-SEPT)'[Link_sent] = "YES"
+			)
+		formatString: 0
+		lineageTag: bcabaf52-2ea2-494e-9679-19137aa453b7
+
+	measure Renewed =
+			
+			CALCULATE(
+			    COUNTROWS('RAW DATA(JAN-SEPT)'),
+			    'RAW DATA(JAN-SEPT)'[autopulse_renewal] = "YES"
+			)
+		formatString: #,0
+		lineageTag: 07326b0d-1ddd-4dee-ba1a-19536337c051
+
+	measure Whatsapp_renewal_count =
+			
+			CALCULATE(
+			    COUNTROWS('RAW DATA(JAN-SEPT)'),
+			    'RAW DATA(JAN-SEPT)'[whatsapp_renewal] = "YES"
+			)
+		formatString: 0
+		lineageTag: 5535f90d-2577-45f0-9277-eb2f89621457
+
+	measure 'Not Interested' =
+			
+			CALCULATE (
+			    COUNTROWS('RAW DATA(JAN-SEPT)'),
+			    'RAW DATA(JAN-SEPT)'[lastcalldisposition] = "Renewal Not Required",
+			    'RAW DATA(JAN-SEPT)'[tertiary_disposition] IN {
+			        "High Renewal Premium",
+			        "Distance from Dealer Location",
+			        "Dissatisfied with Claim",
+			        "Dissatisfied with previous service",
+			        "Dissatisfied with Sales",
+			        "Other Service"
+			    }
+			)
+		formatString: 0
+		lineageTag: 5b24e159-2a1f-4b2b-bb3f-c0eaff46c319
+
+	measure Follow-ups = CALCULATE(COUNT ( 'RAW DATA(JAN-SEPT)'[followupdate]),'RAW DATA(JAN-SEPT)'[attempt_count]>5)
+		formatString: 0
+		lineageTag: 922bf207-6a3f-46d6-bed1-fc93bbd5c692
+
+	measure 'Total Premium' = CALCULATE( SUM('RAW DATA(JAN-SEPT)'[premium_value]))
+		formatString: "₹"\ #,0;#,0\ -"₹";"₹"\ #,0
+		lineageTag: b07ad9a8-a3f1-4b19-a266-db4389457903
+		dataCategory: Uncategorized
+
+		annotation PBI_FormatHint = {"currencyCulture":"en-IN"}
+
+	measure 'Funnel SVG' =
+			
+			-- ===== DATA: keep the 5 lines from your working version =====
+			VAR _Up  = COUNTROWS('RAW DATA(JAN-SEPT)')
+			VAR _Att = 'RAW DATA(JAN-SEPT)'[Attempted]
+			VAR _Q   = 'RAW DATA(JAN-SEPT)'[Quote_sent]
+			VAR _L   = 'RAW DATA(JAN-SEPT)'[Link_sent_count]
+			VAR _R   = 'RAW DATA(JAN-SEPT)'[Renewed]
+			-- ===== SIZES in px (1 pt = 1.33 px) =====
+			VAR _W       = 460                 -- Image size › Width
+			VAR _Top     = 40                  -- space for the title
+			VAR _Step    = 120                  -- height of one stage
+			VAR _H       = _Top + 5 * _Step    -- 440 = Image size › Height
+			VAR _TitlePx = 19                  -- 14 pt
+			VAR _LabelPx = 15                  -- 11 pt
+			VAR _ValuePx = 19                  -- 12 pt
+			VAR _BarH    = 28
+			VAR _MaxBar  = 320
+			-- ===== STAGES =====
+			VAR _Stages =
+			    UNION (
+			        ROW ( "i", 0, "Stage", "Uploaded",   "Val", _Up,  "Sub", "100%" ),
+			        ROW ( "i", 1, "Stage", "Attempted",  "Val", _Att, "Sub", FORMAT ( DIVIDE ( _Att, _Up ), "0.0%" ) & " of uploaded" ),
+			        ROW ( "i", 2, "Stage", "Quote Sent", "Val", _Q,   "Sub", FORMAT ( DIVIDE ( _Q, _Att ), "0.0%" ) & " of attempted" ),
+			        ROW ( "i", 3, "Stage", "Link Sent",  "Val", _L,   "Sub", FORMAT ( DIVIDE ( _L, _Q ), "0.0%" ) & " of quotes" ),
+			        ROW ( "i", 4, "Stage", "Renewed",    "Val", _R,   "Sub", FORMAT ( DIVIDE ( _R, _L ), "0.0%" ) & " of links" )
+			    )
+			VAR _Body =
+			    CONCATENATEX (
+			        _Stages,
+			        VAR _y    = _Top + [i] * _Step
+			        VAR _bw   = ROUND ( MAX ( 6, DIVIDE ( [Val], _Up ) * _MaxBar ), 0 )
+			        VAR _x    = ROUND ( ( _W - _bw ) / 2, 0 )
+			        VAR _fill = IF ( [i] = 4, "rgb(26,35,126)", "rgb(22,131,232)" )
+			        RETURN
+			            "<text x='" & _W / 2 & "' y='" & _y + _LabelPx & "' text-anchor='middle' font-size='" & _LabelPx & "' font-weight='600' fill='rgb(74,81,104)'>" & [Stage] & "</text>"
+			                & "<rect x='" & _x & "' y='" & _y + _LabelPx + 7 & "' width='" & _bw & "' height='" & _BarH & "' rx='4' fill='" & _fill & "'/>"
+			                & "<text x='" & _W / 2 & "' y='" & _y + _LabelPx + 7 + _BarH + _ValuePx + 4 & "' text-anchor='middle' font-size='" & _ValuePx & "' fill='rgb(43,48,64)'>"
+			                & "<tspan font-weight='700'>" & FORMAT ( [Val], "#,##0" ) & "</tspan> &#183; " & [Sub] & "</text>",
+			        "",
+			        [i], ASC
+			    )
+			VAR _Svg =
+			    "<svg xmlns='http://www.w3.org/2000/svg' width='" & _W & "' height='" & _H & "' viewBox='0 0 " & _W & " " & _H & "' font-family='Segoe UI, sans-serif'>"
+			        & "<rect width='" & _W & "' height='" & _H & "' fill='white'/>"
+			        & "<text x='" & _W / 2 & "' y='26' text-anchor='middle' font-size='" & _TitlePx & "' fill='rgb(37,36,35)'>Renewal Funnel</text>"
+			        & _Body
+			        & "</svg>"
+			RETURN
+			    "data:image/svg+xml;utf8," & SUBSTITUTE ( SUBSTITUTE ( _Svg, "%", "%25" ), "#", "%23" )
+		lineageTag: 7a818154-919e-427c-b7fe-f023489fe18b
+		dataCategory: ImageUrl
+
+	measure 'Attempted Sub' =
+			
+			FORMAT ( DIVIDE ( [Attempted], COUNTROWS ( 'RAW DATA(JAN-SEPT)' ) ), "0.0%" ) & " of uploaded"
+		lineageTag: 34a24dcc-e951-4215-a2ae-ba34876ad254
+
+	measure 'Uploaded Sub' = "Total leads"
+		lineageTag: 26dbd89b-5549-46a1-a394-787b32b3732a
+
+	measure 'Quote Sub' =
+			
+			FORMAT ( DIVIDE ( [Quote_sent], [Attempted] ), "0.0%" ) & " of attempted"
+		lineageTag: 5092415c-997e-4e96-8cdf-0504237efb49
+
+	measure 'Link Sub' =
+			
+			FORMAT ( DIVIDE ( [Link_sent_count], [Attempted] ), "0.0%" ) & " of attempted"
+		lineageTag: e9215a23-6f65-481c-9a10-945c57dbf233
+
+	measure 'Renewed Sub' =
+			
+			FORMAT ( DIVIDE ( [Renewed], [Attempted] ), "0.00%" ) & " of attempted"
+		lineageTag: 3eb65145-cf2c-4b61-b611-a2944a633fd7
+
+	measure 'WhatsApp Sub' =
+			
+			"₹" &
+			FORMAT(
+			    CALCULATE(
+			        SUM('RAW DATA(JAN-SEPT)'[premium_value]),
+			        'RAW DATA(JAN-SEPT)'[whatsapp_renewal] = "YES"
+			    ) / 1000000,
+			    "0.0"
+			) & "M premium"
+		lineageTag: 7c6ac95e-fd09-4855-8d28-f1dfa8da8138
+
+	measure 'Not Interested Sub' =
+			
+			FORMAT ( DIVIDE ( [Not Interested], [Attempted] ), "0.0%" ) & " of attempted"
+		lineageTag: b5e04a5d-8b8f-47d6-a55d-65a422716510
+
+	measure 'Premium Sub' =
+			
+			"₹" & FORMAT ( DIVIDE ( SUM ( 'RAW DATA(JAN-SEPT)'[premium_value] ), [Renewed] ), "#,##0" ) & " avg / policy"
+		lineageTag: ac8cd648-613f-4c76-82c3-e9e9d8e546a3
+
+	measure 'Attempt %' =
+			
+			DIVIDE ( [Attempted], COUNTROWS ( 'RAW DATA(JAN-SEPT)' ) )
+		formatString: 0.0%;-0.0%;0.0%
+		lineageTag: a696be3e-88bb-4c1b-9382-86607377aa39
+
+	measure 'Attempt Label Colour' =
+			
+			IF ( [Attempt %] < 0.4, "#A35A00", "#2B3040" )
+		lineageTag: 753cdd78-685c-40eb-98ec-18749b052635
+
+	measure 'Conversion %' =
+			
+			DIVIDE ( [Renewed], COUNTROWS ( 'RAW DATA(JAN-SEPT)' ) )
+		formatString: 0.00%;-0.00%;0.00%
+		lineageTag: cf851210-e808-4b98-a6e4-6a554b5492d8
+
+	measure 'Not Attempted' =
+			
+			CALCULATE (
+			    COUNTROWS ( 'RAW DATA(JAN-SEPT)' ),
+			    'RAW DATA(JAN-SEPT)'[callstatus] = "Notattempted"
+			)
+		formatString: #,0
+		lineageTag: 12e2422a-5f1c-42f4-98d5-47f7226ccb9f
+
+	measure 'Backlog Note' =
+			
+			VAR _Total = [Not Attempted]
+			VAR _Months =
+			    ADDCOLUMNS (
+			        VALUES ( 'RAW DATA(JAN-SEPT)'[DueMonth] ),
+			        "@NA", [Not Attempted],
+			        "@No", CALCULATE ( MAX ( 'RAW DATA(JAN-SEPT)'[Month No] ) )
+			    )
+			VAR _Top2   = TOPN ( 2, _Months, [@NA], DESC )
+			VAR _Top2NA = SUMX ( _Top2, [@NA] )
+			VAR _Names  =
+			    CONCATENATEX ( _Top2, LEFT ( 'RAW DATA(JAN-SEPT)'[DueMonth], 3 ), " + ", [@No], ASC )
+			RETURN
+			    IF (
+			        COUNTROWS ( _Months ) > 2,
+			        _Names & " = " & FORMAT ( _Top2NA / 1000, "0" ) & "K of "
+			            & FORMAT ( _Total / 1000, "0" ) & "K uncalled leads",
+			        FORMAT ( _Total, "#,##0" ) & " uncalled leads"
+			    )
+		lineageTag: 47d31b6a-baee-411a-b74b-fc50abe998bd
+
+	measure 'Backlog Bar Colour' =
+			
+			VAR _Rank =
+			    RANKX (
+			        ALLSELECTED ( 'RAW DATA(JAN-SEPT)'[DueMonth], 'RAW DATA(JAN-SEPT)'[Month No] ),
+			        [Not Attempted]
+			    )
+			RETURN
+			    IF ( _Rank <= 2, "#1A237E", "#A9CBF4" )
+		lineageTag: c4181552-0599-4d57-8dc4-9cc688e04aa6
+
+	measure 'Channel Funnel SVG' =
+			
+			VAR _Ch   = SELECTEDVALUE ( 'RAW DATA(JAN-SEPT)'[channel], "All" )
+			VAR _Up   = COUNTROWS ( 'RAW DATA(JAN-SEPT)' )
+			VAR _Att  = [Attempted]
+			VAR _Q    = [Quote_sent]
+			VAR _L    = [Link_sent_count]
+			VAR _R    = [Renewed]
+			VAR _L2R  = DIVIDE ( _R, _L )
+			-- ===== FONT SIZES in px : change these =====
+			VAR _NamePx      = 18      -- channel name (OEM, Agency, HOM)
+			VAR _LabelPx     = 17      -- Uploaded, Attempted, Quote Sent ...
+			VAR _ValuePx     = 17      -- 465,866 ...
+			VAR _FootLabelPx = 16      -- "Link -> Renewal"
+			VAR _FootValuePx = 26      -- 35.0%
+			-- ===== IMAGE SIZE in px : must match matrix Image size =====
+			VAR _W = 350
+			VAR _H = 250
+			-- ===== layout : calculated automatically =====
+			VAR _LabelW = ROUND ( _LabelPx * 6, 0 )
+			VAR _ValW   = ROUND ( _ValuePx * 4.3, 0 )
+			VAR _BarX   = _LabelW
+			VAR _MaxBar = _W - _LabelW - _ValW - 8
+			VAR _ValX   = _BarX + _MaxBar + 8
+			VAR _HeadH  = _NamePx + 16
+			VAR _FootH  = _FootValuePx + 24
+			VAR _RowH   = ROUND ( ( _H - _HeadH - _FootH ) / 5, 0 )
+			VAR _BarH   = ROUND ( _LabelPx * 1.1, 0 )
+			VAR _LineY  = _HeadH + 5 * _RowH + 4
+			VAR _FootY  = _H - 10
+			VAR _NameY  = _NamePx + 2
+			VAR _DotR   = ROUND ( _NamePx * 0.38, 0 )
+			VAR _DotY   = ROUND ( _NameY - _NamePx * 0.35, 0 )
+			-- ===== colours =====
+			VAR _Color =
+			    SWITCH ( _Ch,
+			        "OEM",    "rgb(30,111,217)",
+			        "Agency", "rgb(232,137,12)",
+			        "HOM",    "rgb(20,153,138)",
+			        "rgb(22,131,232)" )
+			VAR _L2RColor = IF ( _L2R < 0.1, "rgb(163,90,0)", "rgb(26,35,126)" )
+			-- ===== stages =====
+			VAR _Stages =
+			    UNION (
+			        ROW ( "i", 0, "Stage", "Uploaded",   "Val", _Up ),
+			        ROW ( "i", 1, "Stage", "Attempted",  "Val", _Att ),
+			        ROW ( "i", 2, "Stage", "Quote Sent", "Val", _Q ),
+			        ROW ( "i", 3, "Stage", "Link Sent",  "Val", _L ),
+			        ROW ( "i", 4, "Stage", "Renewed",    "Val", _R )
+			    )
+			VAR _Rows =
+			    CONCATENATEX (
+			        _Stages,
+			        VAR _BarY  = _HeadH + [i] * _RowH + ROUND ( ( _RowH - _BarH ) / 2, 0 )
+			        VAR _TextY = _BarY + ROUND ( _BarH / 2 + _LabelPx * 0.35, 0 )
+			        VAR _bw    = IF ( [Val] > 0, ROUND ( MAX ( 2, DIVIDE ( [Val], _Up ) * _MaxBar ), 0 ), 0 )
+			        RETURN
+			            "<text x='0' y='" & _TextY & "' font-size='" & _LabelPx & "' fill='rgb(74,81,104)'>" & [Stage] & "</text>"
+			                & "<rect x='" & _BarX & "' y='" & _BarY & "' width='" & _bw & "' height='" & _BarH & "' rx='3' fill='" & _Color & "'/>"
+			                & "<text x='" & _ValX & "' y='" & _TextY & "' font-size='" & _ValuePx & "' fill='rgb(43,48,64)'>" & FORMAT ( [Val], "#,##0" ) & "</text>",
+			        "",
+			        [i], ASC
+			    )
+			VAR _Svg =
+			    "<svg xmlns='http://www.w3.org/2000/svg' width='" & _W & "' height='" & _H & "' viewBox='0 0 " & _W & " " & _H & "' font-family='Segoe UI, sans-serif'>"
+			        & "<rect width='" & _W & "' height='" & _H & "' fill='white'/>"
+			        & "<circle cx='" & _DotR & "' cy='" & _DotY & "' r='" & _DotR & "' fill='" & _Color & "'/>"
+			        & "<text x='" & 2 * _DotR + 6 & "' y='" & _NameY & "' font-size='" & _NamePx & "' font-weight='700' fill='rgb(31,36,51)'>" & _Ch & "</text>"
+			        & _Rows
+			        & "<line x1='0' y1='" & _LineY & "' x2='" & _W & "' y2='" & _LineY & "' stroke='rgb(225,231,240)' stroke-width='1'/>"
+			        & "<text x='0' y='" & _FootY & "' font-size='" & _FootLabelPx & "' fill='rgb(74,81,104)'>Link &#8594; Renewal</text>"
+			        & "<text x='" & _W & "' y='" & _FootY & "' text-anchor='end' font-size='" & _FootValuePx & "' font-weight='700' fill='" & _L2RColor & "'>" & FORMAT ( _L2R, "0.0%" ) & "</text>"
+			        & "</svg>"
+			RETURN
+			    "data:image/svg+xml;utf8," & SUBSTITUTE ( SUBSTITUTE ( _Svg, "%", "%25" ), "#", "%23" )
+		lineageTag: 57bd22ef-f674-47c5-bc2d-dd235372faaa
+		dataCategory: ImageUrl
+
+	measure 'Link to Renewal %' =
+			
+			DIVIDE ( [Renewed], [Link_sent_count] )
+		formatString: 0.0%;-0.0%;0.0%
+		lineageTag: 0f3af35b-7abb-4b43-8e9e-fe71572059b1
+
+	measure 'Avg Attempts' =
+			
+			CALCULATE (
+			    AVERAGE ( 'RAW DATA(JAN-SEPT)'[attempt_count] ),
+			    'RAW DATA(JAN-SEPT)'[callstatus] = "Attempted"
+			)
+		lineageTag: 8f6878a3-e087-429f-977f-d10380af349d
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Quote %' =
+			
+			DIVIDE ( [Quote_sent], COUNTROWS('RAW DATA(JAN-SEPT)' ))
+		formatString: 0.00%;-0.00%;0.00%
+		lineageTag: ff1b0e72-565f-4778-a11b-e3626fc9c3a2
+
+	measure 'Avg Premium' =
+			
+			CALCULATE (
+			    AVERAGE ( 'RAW DATA(JAN-SEPT)'[premium_value]),
+			    'RAW DATA(JAN-SEPT)'[autopulse_renewal] = "Yes"
+			)
+		formatString: #,0
+		lineageTag: b401c256-ebe3-4c2f-97f9-253c3df00e42
+
+	measure 'Zone Tile SVG' =
+			
+			VAR _Zone    = SELECTEDVALUE ( 'RAW DATA(JAN-SEPT)'[dealerzone], "ALL" )
+			VAR _Leads   = COUNTROWS ( 'RAW DATA(JAN-SEPT)' )
+			VAR _Att     = [Attempted]
+			VAR _Ren     = [Renewed]
+			VAR _Prem    = SUM ( 'RAW DATA(JAN-SEPT)'[premium_value] )
+			VAR _AttPct  = DIVIDE ( _Att, _Leads )
+			VAR _ConvPct = DIVIDE ( _Ren, _Att )
+			-- ===== IMAGE SIZE in px : must match matrix Image size =====
+			VAR _W   = 455          -- Image size › Width
+			VAR _H   = 165          -- Image size › Height
+			VAR _Gap = 0           -- space between tiles (same as your KPI cards)
+			-- ===== FONT SIZES in px =====
+			VAR _NamePx  = 24       -- WEST, SOUTH ...
+			VAR _LeadsPx = 25       -- 486,717 leads
+			VAR _LabelPx = 17      -- Attempt %, Renewed ...
+			VAR _ValuePx = 30       -- 33.7%, 4,557 ...
+			VAR _BarH    = 10       -- progress bar thickness
+			-- ===== layout : calculated =====
+			VAR _CW     = _W - _Gap
+			VAR _Pad    = 24
+			VAR _ColW   = ( _CW - 2 * _Pad ) / 4
+			VAR _NameY  = _Pad + ROUND ( _NamePx * 0.75, 0 )
+			VAR _BarY   = _H - _Pad - _BarH
+			VAR _ValueY = _BarY - 18
+			VAR _LabelY = _ValueY - _ValuePx - 4
+			-- ===== colours =====
+			VAR _Navy      = "rgb(26,35,126)"
+			VAR _Amber     = "rgb(163,90,0)"
+			VAR _Grey      = "rgb(91,98,117)"
+			VAR _AttColor  = IF ( _AttPct < 0.4, _Amber, _Navy )
+			VAR _ConvColor = IF ( _ConvPct < 0.01, _Amber, _Navy )
+			VAR _BarColor  = IF ( _AttPct < 0.4, "rgb(232,137,12)", "rgb(22,131,232)" )
+			VAR _BarW      = ROUND ( ( _CW - 2 * _Pad ) * _AttPct, 0 )
+			-- ===== the 4 numbers =====
+			VAR _Metrics =
+			    UNION (
+			        ROW ( "i", 0, "Lbl", "Attempt %", "Txt", FORMAT ( _AttPct, "0.0%" ),   "Col", _AttColor ),
+			        ROW ( "i", 1, "Lbl", "Renewed",   "Txt", FORMAT ( _Ren, "#,##0" ),     "Col", _Navy ),
+			        ROW ( "i", 2, "Lbl", "Conv %",    "Txt", FORMAT ( _ConvPct, "0.00%" ), "Col", _ConvColor ),
+			        ROW ( "i", 3, "Lbl", "Premium",   "Txt", "&#8377;" & FORMAT ( _Prem / 1000000, "0.0" ) & "M", "Col", _Navy )
+			    )
+			VAR _Cols =
+			    CONCATENATEX (
+			        _Metrics,
+			        VAR _x = ROUND ( _Pad + [i] * _ColW, 0 )
+			        RETURN
+			            "<text x='" & _x & "' y='" & _LabelY & "' font-size='" & _LabelPx & "' fill='" & _Grey & "'>" & [Lbl] & "</text>"
+			                & "<text x='" & _x & "' y='" & _ValueY & "' font-size='" & _ValuePx & "' font-weight='600' fill='" & [Col] & "'>" & [Txt] & "</text>",
+			        "",
+			        [i], ASC
+			    )
+			VAR _Svg =
+			    "<svg xmlns='http://www.w3.org/2000/svg' width='" & _W & "' height='" & _H & "' viewBox='0 0 " & _W & " " & _H & "' font-family='Segoe UI, sans-serif'>"
+			        & "<rect x='0' y='0' width='" & _CW & "' height='" & _H & "' rx='18' fill='white'/>"
+			        & "<text x='" & _Pad & "' y='" & _NameY & "' font-size='" & _NamePx & "' font-weight='700' fill='rgb(22,26,92)'>" & _Zone & "</text>"
+			        & "<text x='" & _CW - _Pad & "' y='" & _NameY & "' text-anchor='end' font-size='" & _LeadsPx & "' fill='rgb(74,81,104)'>" & FORMAT ( _Leads, "#,##0" ) & " leads</text>"
+			        & _Cols
+			        & "<rect x='" & _Pad & "' y='" & _BarY & "' width='" & _CW - 2 * _Pad & "' height='" & _BarH & "' rx='" & _BarH / 2 & "' fill='rgb(227,235,246)'/>"
+			        & "<rect x='" & _Pad & "' y='" & _BarY & "' width='" & _BarW & "' height='" & _BarH & "' rx='" & _BarH / 2 & "' fill='" & _BarColor & "'/>"
+			        & "</svg>"
+			RETURN
+			    "data:image/svg+xml;utf8," & SUBSTITUTE ( SUBSTITUTE ( _Svg, "%", "%25" ), "#", "%23" )
+		lineageTag: 9545940c-7536-49a6-a8c0-92eff768c3d0
+		dataCategory: ImageUrl
+
+	measure 'Campaign Funnel SVG' =
+			
+			VAR _Camp  = SELECTEDVALUE ( 'RAW DATA(JAN-SEPT)'[campignname], "All" )
+			VAR _Title = UPPER ( LEFT ( _Camp, 1 ) ) & MID ( _Camp, 2, 50 ) & " Campaign Funnel"
+			VAR _Up    = COUNTROWS ( 'RAW DATA(JAN-SEPT)' )
+			VAR _Att   = [Attempted]
+			VAR _Q     = [Quote_sent]
+			VAR _L     = [Link_sent_count]
+			VAR _R     = [Renewed]
+			VAR _Prem  = SUM ( 'RAW DATA(JAN-SEPT)'[premium_value] )
+			VAR _L2R   = DIVIDE ( _R, _L )
+			-- same scale for both cards: the larger campaign's Uploaded = full bar
+			VAR _MaxUp =
+			    MAXX (
+			        ALL ( 'RAW DATA(JAN-SEPT)'[campignname] ),
+			        CALCULATE ( COUNTROWS ( 'RAW DATA(JAN-SEPT)' ) )
+			    )
+			-- ===== IMAGE SIZE in px : Image size in BOTH tables must be exactly this =====
+			VAR _W = 696
+			VAR _H = 490
+			-- ===== FONT SIZES in px =====
+			VAR _TitlePx     = 29
+			VAR _LabelPx     = 27      -- Uploaded, Attempted ...
+			VAR _ValuePx     = 27      -- 557,190 ...
+			VAR _SubPx       = 22      -- 56.7% of uploaded ...
+			VAR _FootLabelPx = 27      -- "Premium"
+			VAR _FootValuePx = 33      -- ₹16.0M
+			-- ===== layout : calculated, no need to touch =====
+			VAR _Pad    = 28
+			VAR _LabelW = ROUND ( _LabelPx * 6.2, 0 )
+			VAR _ValW   = ROUND ( _SubPx * 10, 0 )
+			VAR _BarX   = _Pad + _LabelW
+			VAR _MaxBar = _W - _BarX - 20 - _ValW - _Pad
+			VAR _ValX   = _BarX + _MaxBar + 20
+			VAR _TitleY = _Pad + _TitlePx
+			VAR _Top    = _TitleY + 24
+			VAR _FootY  = _H - _Pad + 4
+			VAR _LineY  = _FootY - _FootValuePx - 16
+			VAR _RowH   = ROUND ( ( _LineY - 8 - _Top ) / 5, 0 )
+			VAR _BarH   = ROUND ( _LabelPx * 1.6, 0 )
+			-- ===== colours =====
+			VAR _Blue  = "rgb(22,131,232)"
+			VAR _Navy  = "rgb(26,35,126)"
+			VAR _Amber = "rgb(163,90,0)"
+			VAR _Grey  = "rgb(91,98,117)"
+			-- ===== stages =====
+			VAR _Stages =
+			    UNION (
+			        ROW ( "i", 0, "Stage", "Uploaded",   "Val", _Up,  "Sub", "",                                                   "SubCol", _Grey ),
+			        ROW ( "i", 1, "Stage", "Attempted",  "Val", _Att, "Sub", FORMAT ( DIVIDE ( _Att, _Up ), "0.0%" ) & " of uploaded", "SubCol", _Grey ),
+			        ROW ( "i", 2, "Stage", "Quote Sent", "Val", _Q,   "Sub", FORMAT ( DIVIDE ( _Q, _Att ), "0.0%" ) & " of attempted", "SubCol", _Grey ),
+			        ROW ( "i", 3, "Stage", "Link Sent",  "Val", _L,   "Sub", FORMAT ( DIVIDE ( _L, _Q ), "0.0%" ) & " of quotes",      "SubCol", _Grey ),
+			        ROW ( "i", 4, "Stage", "Renewed",    "Val", _R,   "Sub", FORMAT ( _L2R, "0.0%" ) & " of links",                   "SubCol", IF ( _L2R < 0.1, _Amber, _Grey ) )
+			    )
+			VAR _Rows =
+			    CONCATENATEX (
+			        _Stages,
+			        VAR _RowY   = _Top + [i] * _RowH
+			        VAR _ValY   = _RowY + _ValuePx
+			        VAR _SubY   = _ValY + _SubPx + 6
+			        VAR _BarY   = ROUND ( ( _RowY + _SubY ) / 2 - _BarH / 2 + 2, 0 )
+			        VAR _LabelY = _BarY + ROUND ( _BarH / 2 + _LabelPx * 0.35, 0 )
+			        VAR _bw     = IF ( [Val] > 0, ROUND ( MAX ( 3, DIVIDE ( [Val], _MaxUp ) * _MaxBar ), 0 ), 0 )
+			        VAR _Fill   = IF ( [i] = 4, _Navy, _Blue )
+			        VAR _SubW   = IF ( [i] = 4 && _L2R < 0.1, "700", "400" )
+			        RETURN
+			            "<text x='" & _Pad & "' y='" & _LabelY & "' font-size='" & _LabelPx & "' font-weight='600' fill='rgb(74,81,104)'>" & [Stage] & "</text>"
+			                & "<rect x='" & _BarX & "' y='" & _BarY & "' width='" & _bw & "' height='" & _BarH & "' rx='5' fill='" & _Fill & "'/>"
+			                & "<text x='" & _ValX & "' y='" & _ValY & "' font-size='" & _ValuePx & "' font-weight='700' fill='rgb(31,36,51)'>" & FORMAT ( [Val], "#,##0" ) & "</text>"
+			                & "<text x='" & _ValX & "' y='" & _SubY & "' font-size='" & _SubPx & "' font-weight='" & _SubW & "' fill='" & [SubCol] & "'>" & [Sub] & "</text>",
+			        "",
+			        [i], ASC
+			    )
+			VAR _Svg =
+			    "<svg xmlns='http://www.w3.org/2000/svg' width='" & _W & "' height='" & _H & "' viewBox='0 0 " & _W & " " & _H & "' font-family='Segoe UI, sans-serif'>"
+			        & "<rect x='0' y='0' width='" & _W & "' height='" & _H & "' rx='18' fill='white'/>"
+			        & "<text x='" & _W / 2 & "' y='" & _TitleY & "' text-anchor='middle' font-size='" & _TitlePx & "' font-weight='600' fill='rgb(43,48,64)'>" & _Title & "</text>"
+			        & _Rows
+			        & "<line x1='" & _Pad & "' y1='" & _LineY & "' x2='" & _W - _Pad & "' y2='" & _LineY & "' stroke='rgb(225,231,240)' stroke-width='1'/>"
+			        & "<text x='" & _Pad & "' y='" & _FootY & "' font-size='" & _FootLabelPx & "' font-weight='600' fill='rgb(74,81,104)'>Premium</text>"
+			        & "<text x='" & _W - _Pad & "' y='" & _FootY & "' text-anchor='end' font-size='" & _FootValuePx & "' font-weight='700' fill='" & _Navy & "'>&#8377;" & FORMAT ( _Prem / 1000000, "0.0" ) & "M</text>"
+			        & "</svg>"
+			RETURN
+			    "data:image/svg+xml;utf8," & SUBSTITUTE ( SUBSTITUTE ( _Svg, "%", "%25" ), "#", "%23" )
+		lineageTag: e1c599d0-557f-43a4-8490-afcf5ea3203d
+		dataCategory: ImageUrl
+
+	measure Uploaded = COUNTROWS ( 'RAW DATA(JAN-SEPT)' )
+		formatString: #,0
+		lineageTag: c49e39d4-672f-4114-b2ef-de4bdc882091
+
+	measure 'WhatsApp Renewals' =
+			
+			CALCULATE (
+			    COUNTROWS ( 'RAW DATA(JAN-SEPT)' ),
+			    'RAW DATA(JAN-SEPT)'[whatsapp_renewal] = "YES"
+			)
+		formatString: #,0
+		lineageTag: ae22f6c4-eddd-4fe1-b5a7-20d1a230a269
+
+	measure 'L2R Gap' =
+			
+			VAR _Ren =
+			    CALCULATE ( DIVIDE ( [Renewed], [Link_sent_count] ), 'RAW DATA(JAN-SEPT)'[campignname] = "renewal" )
+			VAR _Roll =
+			    CALCULATE ( DIVIDE ( [Renewed], [Link_sent_count] ), 'RAW DATA(JAN-SEPT)'[campignname] = "rollover" )
+			RETURN
+			    DIVIDE ( _Ren, _Roll )
+		lineageTag: 824dfb98-da51-4a53-a4c0-626264e60626
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'L2R Gap Sub' = "Renewal links vs rollover"
+		lineageTag: ae2c9933-d696-4b1e-a8cb-8faafe99e3c4
+
+	measure 'Rollover Not Called' =
+			
+			CALCULATE (
+			    COUNTROWS ( 'RAW DATA(JAN-SEPT)' ),
+			    'RAW DATA(JAN-SEPT)'[campignname] = "rollover",
+			    'RAW DATA(JAN-SEPT)'[callstatus] = "Notattempted"
+			)
+		formatString: 0
+		lineageTag: c9bba0e2-e9a8-4e43-a8bd-bc57c8bbddcc
+
+	measure 'Rollover Not Called Sub' =
+			
+			VAR _RollLeads =
+			    CALCULATE ( COUNTROWS ( 'RAW DATA(JAN-SEPT)' ), 'RAW DATA(JAN-SEPT)'[campignname] = "rollover" )
+			RETURN
+			    FORMAT ( DIVIDE ( [Rollover Not Called], _RollLeads ), "0.0%" ) & " of rollover leads"
+		lineageTag: 5bdfba3c-50cb-41cb-b8d7-6600f912ef50
+
+	measure 'Rollover Premium Share' =
+			
+			VAR _Roll =
+			    CALCULATE ( SUM ( 'RAW DATA(JAN-SEPT)'[premium_value] ), 'RAW DATA(JAN-SEPT)'[campignname] = "rollover" )
+			VAR _All =
+			    CALCULATE ( SUM ( 'RAW DATA(JAN-SEPT)'[premium_value] ), REMOVEFILTERS ( 'RAW DATA(JAN-SEPT)'[campignname] ) )
+			RETURN
+			    DIVIDE ( _Roll, _All )
+		lineageTag: 9969e6ca-7c30-4b9b-ba83-8bcd19b726b3
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Rollover Premium Sub' =
+			
+			VAR _Roll =
+			    CALCULATE ( SUM ( 'RAW DATA(JAN-SEPT)'[premium_value] ), 'RAW DATA(JAN-SEPT)'[campignname] = "rollover" )
+			VAR _All =
+			    CALCULATE ( SUM ( 'RAW DATA(JAN-SEPT)'[premium_value] ), REMOVEFILTERS ( 'RAW DATA(JAN-SEPT)'[campignname] ) )
+			RETURN
+			    "₹" & FORMAT ( _Roll / 1000000, "0.0" ) & "M of ₹" & FORMAT ( _All / 1000000, "0.0" ) & "M"
+		lineageTag: 8ba66e6d-5ef9-44a2-8983-968bf72a8834
+
+	measure 'Lead Share %' =
+			
+			DIVIDE (
+			    COUNTROWS ( 'RAW DATA(JAN-SEPT)' ),
+			    CALCULATE ( COUNTROWS ( 'RAW DATA(JAN-SEPT)' ), REMOVEFILTERS ( 'RAW DATA(JAN-SEPT)'[channel] ) )
+			)
+		formatString: 0.0%;-0.0%;0.0%
+		lineageTag: ffc121ff-acf0-4c99-864a-dac99ce62d3f
+
+	measure 'Conversion % (Matrix)' =
+			
+			VAR _Att = [Attempted]
+			RETURN
+			    IF ( _Att < 10, BLANK (), DIVIDE ( [Renewed], _Att ) )
+		formatString: 0.0%;-0.0%;0.0%
+		lineageTag: 5e7d17f2-90cd-4d99-a8a2-5b92cd67d1eb
+
+	measure 'Outcome Share' =
+			
+			DIVIDE (
+			    CALCULATE (
+			        COUNTROWS ( 'RAW DATA(JAN-SEPT)' ),
+			        'RAW DATA(JAN-SEPT)'[callstatus] = "Attempted"
+			    ),
+			    CALCULATE (
+			        COUNTROWS ( 'RAW DATA(JAN-SEPT)' ),
+			        'RAW DATA(JAN-SEPT)'[callstatus] = "Attempted",
+			        REMOVEFILTERS ( 'RAW DATA(JAN-SEPT)'[Outcome Group], 'RAW DATA(JAN-SEPT)'[lastcalldisposition] )
+			    )
+			)
+		formatString: 0.0%;-0.0%;0.0%
+		lineageTag: 5956541f-9a9b-464b-9fe1-7b9799d6fb25
+
+	measure 'TP Bars SVG' =
+			
+			VAR _NeedTP =
+			    CALCULATE ( COUNTROWS ( 'RAW DATA(JAN-SEPT)' ),
+			        'RAW DATA(JAN-SEPT)'[tertiary_disposition] = "Need TP Insurance Only" )
+			VAR _TPCov =
+			    CALCULATE ( COUNTROWS ( 'RAW DATA(JAN-SEPT)' ),
+			        'RAW DATA(JAN-SEPT)'[tertiary_disposition] = "TP Already Covered" )
+			VAR _SATP =
+			    CALCULATE ( COUNTROWS ( 'RAW DATA(JAN-SEPT)' ),
+			        'RAW DATA(JAN-SEPT)'[renewal_type] = "SATP" )
+			VAR _Max = MAX ( _NeedTP, MAX ( _TPCov, _SATP ) )
+			-- ===== size (Image size must match) =====
+			VAR _W      = 480
+			VAR _H      = 250
+			VAR _BarX   = 190
+			VAR _MaxBar = _W - _BarX - 70
+			-- ===== colours =====
+			VAR _Grey = "rgb(122,131,150)"
+			VAR _Teal = "rgb(20,153,138)"
+			VAR _Ink  = "rgb(43,48,64)"
+			-- ===== bars =====
+			VAR _Bars =
+			    UNION (
+			        ROW ( "i", 0, "Lbl", "Need TP Insurance Only", "Val", _NeedTP, "Col", _Grey, "Wt", "400" ),
+			        ROW ( "i", 1, "Lbl", "TP Already Covered",     "Val", _TPCov,  "Col", _Grey, "Wt", "400" ),
+			        ROW ( "i", 2, "Lbl", "SATP leads uploaded",    "Val", _SATP,   "Col", _Teal, "Wt", "700" )
+			    )
+			VAR _BarSvg =
+			    CONCATENATEX (
+			        _Bars,
+			        VAR _top = 8 + [i] * 42
+			        VAR _bw  = IF ( [Val] > 0, ROUND ( MAX ( 2, DIVIDE ( [Val], _Max ) * _MaxBar ), 0 ), 0 )
+			        RETURN
+			            "<text x='0' y='" & _top + 17 & "' font-size='15' font-weight='" & [Wt] & "' fill='" & _Ink & "'>" & [Lbl] & "</text>"
+			                & "<rect x='" & _BarX & "' y='" & _top + 2 & "' width='" & _bw & "' height='22' rx='4' fill='" & [Col] & "'/>"
+			                & "<text x='" & _BarX + _bw + 8 & "' y='" & _top + 18 & "' font-size='15' font-weight='" & [Wt] & "' fill='" & _Ink & "'>" & FORMAT ( [Val], "#,##0" ) & "</text>",
+			        "",
+			        [i], ASC
+			    )
+			-- ===== orange note (3 lines) =====
+			VAR _Callout =
+			    "<rect x='0' y='140' width='" & _W & "' height='96' rx='10' fill='rgb(255,244,229)'/>"
+			        & "<text x='14' y='168' font-size='15' fill='" & _Ink & "'><tspan font-weight='700'>" & FORMAT ( _NeedTP, "#,##0" ) & "</tspan> customers asked for third-party cover only,</text>"
+			        & "<text x='14' y='192' font-size='15' fill='" & _Ink & "'>but just <tspan font-weight='700'>" & FORMAT ( _SATP, "#,##0" ) & "</tspan> SATP leads were uploaded &#8212;</text>"
+			        & "<text x='14' y='216' font-size='15' fill='" & _Ink & "'>a ready SATP cross-sell list.</text>"
+			VAR _Svg =
+			    "<svg xmlns='http://www.w3.org/2000/svg' width='" & _W & "' height='" & _H & "' viewBox='0 0 " & _W & " " & _H & "' font-family='Segoe UI, sans-serif'>"
+			        & "<rect width='" & _W & "' height='" & _H & "' fill='white'/>"
+			        & _BarSvg & _Callout & "</svg>"
+			RETURN
+			    "data:image/svg+xml;utf8," & SUBSTITUTE ( SUBSTITUTE ( _Svg, "%", "%25" ), "#", "%23" )
+		lineageTag: b1743877-eb1d-4b7a-b51f-aca1e51892d4
+		dataCategory: ImageUrl
+
+	measure 'TP Reasons SVG' =
+			
+			VAR _W     = 480
+			VAR _H     = 250
+			VAR _ColW  = 240
+			VAR _Ink   = "rgb(43,48,64)"
+			VAR _Muted = "rgb(74,81,104)"
+			VAR _Navy  = "rgb(26,35,126)"
+			VAR _Types = { ( "SAOD", 0 ), ( "PACKAGE", 1 ) }
+			VAR _Blocks =
+			    CONCATENATEX (
+			        _Types,
+			        VAR _t = [Value1]
+			        VAR _x = [Value2] * _ColW
+			        VAR _R =
+			            ADDCOLUMNS (
+			                FILTER (
+			                    CALCULATETABLE (
+			                        VALUES ( 'RAW DATA(JAN-SEPT)'[tertiary_disposition] ),
+			                        'RAW DATA(JAN-SEPT)'[renewal_type] = _t
+			                    ),
+			                    'RAW DATA(JAN-SEPT)'[tertiary_disposition] <> ""
+			                        && NOT ( LEFT ( 'RAW DATA(JAN-SEPT)'[tertiary_disposition], 1 )
+			                                 IN { "0", "1", "2", "3", "4", "5", "6", "7", "8", "9" } )
+			                ),
+			                "n", CALCULATE ( COUNTROWS ( 'RAW DATA(JAN-SEPT)' ), 'RAW DATA(JAN-SEPT)'[renewal_type] = _t )
+			            )
+			        VAR _Items =
+			            CONCATENATEX (
+			                TOPN ( 3, _R, [n], DESC ),
+			                VAR _cur = [n]
+			                VAR _rk  = COUNTROWS ( FILTER ( _R, [n] > _cur ) ) + 1
+			                VAR _y   = 100 + ( _rk - 1 ) * 38
+			                RETURN
+			                    "<text x='" & _x & "' y='" & _y & "' font-size='14' fill='" & _Ink & "'>" & _rk & ". "
+			                        & 'RAW DATA(JAN-SEPT)'[tertiary_disposition]
+			                        & " <tspan font-weight='700'>" & FORMAT ( _cur, "#,##0" ) & "</tspan></text>",
+			                ""
+			            )
+			        RETURN
+			            "<text x='" & _x & "' y='64' font-size='15' font-weight='700' fill='" & _Navy & "'>" & _t & "</text>" & _Items,
+			        "",
+			        [Value2], ASC
+			    )
+			VAR _Svg =
+			    "<svg xmlns='http://www.w3.org/2000/svg' width='" & _W & "' height='" & _H & "' viewBox='0 0 " & _W & " " & _H & "' font-family='Segoe UI, sans-serif'>"
+			        & "<rect width='" & _W & "' height='" & _H & "' fill='white'/>"
+			        & "<text x='0' y='22' font-size='15' font-weight='700' fill='" & _Muted & "'>Top drop reasons by policy type</text>"
+			        & "<line x1='0' y1='34' x2='" & _W & "' y2='34' stroke='rgb(199,210,227)' stroke-width='1'/>"
+			        & _Blocks & "</svg>"
+			RETURN
+			    "data:image/svg+xml;utf8," & SUBSTITUTE ( SUBSTITUTE ( _Svg, "%", "%25" ), "#", "%23" )
+		lineageTag: 412427e3-1a90-4a50-a898-bb3e2d9eb2a2
+		dataCategory: ImageUrl
+
+	column DueMonth
+		dataType: string
+		lineageTag: 53f89bce-cc00-4f9d-8664-522e2ea97d1a
+		summarizeBy: none
+		sourceColumn: DueMonth
+		sortByColumn: 'Month No'
+
+		changedProperty = SortByColumn
+
+		annotation SummarizationSetBy = Automatic
+
+	column assigned_id
+		dataType: int64
+		formatString: #,0
+		lineageTag: 82dc9787-3705-47ad-b356-e91a82f4763e
+		summarizeBy: sum
+		sourceColumn: assigned_id
+
+		annotation SummarizationSetBy = User
+
+	column assigneddate
+		dataType: dateTime
+		formatString: Long Date
+		lineageTag: 74ee0efc-a2d1-4e63-9bfb-440a53c155f1
+		summarizeBy: none
+		sourceColumn: assigneddate
+
+		variation Variation
+			isDefault
+			relationship: 6cf15e39-33b9-4d0d-8c5a-74ee0588a733
+			defaultHierarchy: LocalDateTable_b5afb708-0737-40da-82e4-5663443197ea.'Date Hierarchy'
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column vehicle_id
+		dataType: int64
+		formatString: 0
+		lineageTag: d81d5add-9509-484d-bfa7-ddde922b8e32
+		summarizeBy: sum
+		sourceColumn: vehicle_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column policyduedate
+		dataType: dateTime
+		formatString: Long Date
+		lineageTag: a5fbbc4f-2118-4be4-be8b-f29f26ca8245
+		summarizeBy: none
+		sourceColumn: policyduedate
+
+		variation Variation
+			isDefault
+			relationship: b16580c5-ccd9-4197-9460-f52249313d90
+			defaultHierarchy: LocalDateTable_800c8c05-4fa2-4f4d-9f76-44aeb60e0374.'Date Hierarchy'
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column cp_code
+		dataType: int64
+		formatString: 0
+		lineageTag: 8aa17c38-2d2e-47a8-91aa-6051360bdd9e
+		summarizeBy: sum
+		sourceColumn: cp_code
+
+		annotation SummarizationSetBy = Automatic
+
+	column is_dropped
+		dataType: string
+		lineageTag: c48204ed-0977-4c6c-9700-72030b8bad0a
+		summarizeBy: none
+		sourceColumn: is_dropped
+
+		annotation SummarizationSetBy = Automatic
+
+	column attempt_count
+		dataType: int64
+		formatString: 0
+		lineageTag: 133e5361-6179-42bc-9ab8-94e746c8191a
+		summarizeBy: sum
+		sourceColumn: attempt_count
+
+		annotation SummarizationSetBy = Automatic
+
+	column firstcalldate
+		dataType: dateTime
+		formatString: Long Date
+		lineageTag: 8ef5b737-2a64-4adb-ba79-6ee08e951cd2
+		summarizeBy: none
+		sourceColumn: firstcalldate
+
+		variation Variation
+			isDefault
+			relationship: 24e54510-9ca9-4677-bb8d-0eeadd51ffb3
+			defaultHierarchy: LocalDateTable_5418985d-5dec-4dff-a178-a0136325e889.'Date Hierarchy'
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column lastcalldate
+		dataType: dateTime
+		formatString: Long Date
+		lineageTag: b6dfe502-e675-4bb8-8906-369254f7c8c8
+		summarizeBy: none
+		sourceColumn: lastcalldate
+
+		variation Variation
+			isDefault
+			relationship: d7e502a1-f44c-4723-9cf7-2dfcf25d76a2
+			defaultHierarchy: LocalDateTable_1dd68120-5586-43f5-ae70-cc71857d3814.'Date Hierarchy'
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column firstcalldisposition
+		dataType: string
+		lineageTag: 465d4640-504a-4862-b752-c76ca8f0aea6
+		summarizeBy: none
+		sourceColumn: firstcalldisposition
+
+		annotation SummarizationSetBy = Automatic
+
+	column lastcalldisposition
+		dataType: string
+		lineageTag: 46a0b939-a632-4944-9071-09b9b8a6bb3e
+		summarizeBy: none
+		sourceColumn: lastcalldisposition
+
+		annotation SummarizationSetBy = Automatic
+
+	column calldispositiondata_id
+		dataType: int64
+		formatString: 0
+		lineageTag: d9284778-beac-44a5-93d5-196faf1065a1
+		summarizeBy: sum
+		sourceColumn: calldispositiondata_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column username
+		dataType: string
+		lineageTag: 2417c78d-25e8-43fd-88cc-ee399dbeb27c
+		summarizeBy: none
+		sourceColumn: username
+
+		annotation SummarizationSetBy = Automatic
+
+	column dealercode
+		dataType: int64
+		formatString: 0
+		lineageTag: 91ebe841-e4e6-4bf3-a253-fc20d01325f2
+		summarizeBy: sum
+		sourceColumn: dealercode
+
+		annotation SummarizationSetBy = Automatic
+
+	column DisplayName
+		dataType: string
+		lineageTag: ae68f0f3-552d-49be-b916-9b7185a9a0b7
+		summarizeBy: none
+		sourceColumn: DisplayName
+
+		annotation SummarizationSetBy = Automatic
+
+	column dealerstate
+		dataType: string
+		lineageTag: 70cab369-255f-43a0-af4f-9d5fcf613ac7
+		summarizeBy: none
+		sourceColumn: dealerstate
+
+		annotation SummarizationSetBy = Automatic
+
+	column dealerzone
+		dataType: string
+		lineageTag: 134e3b3e-6012-4aed-aaf6-b3f6ed0765ef
+		summarizeBy: none
+		sourceColumn: dealerzone
+
+		annotation SummarizationSetBy = Automatic
+
+	column dealercity
+		dataType: string
+		lineageTag: 65f48d48-0bf3-43d3-9473-46c571711253
+		summarizeBy: none
+		sourceColumn: dealercity
+
+		annotation SummarizationSetBy = Automatic
+
+	column callstatus
+		dataType: string
+		lineageTag: 078fdb28-3c5b-4762-8607-1e2b09ed5174
+		summarizeBy: none
+		sourceColumn: callstatus
+
+		annotation SummarizationSetBy = Automatic
+
+	column is_renewed
+		dataType: string
+		lineageTag: b86608c6-aa51-47d1-a0a3-eac4b3e7938c
+		summarizeBy: none
+		sourceColumn: is_renewed
+
+		annotation SummarizationSetBy = Automatic
+
+	column Link_sent
+		dataType: string
+		lineageTag: d1a43b22-2f1a-4965-bc7c-0b3ea331bcb6
+		summarizeBy: none
+		sourceColumn: Link_sent
+
+		annotation SummarizationSetBy = Automatic
+
+	column autopulse_renewal
+		dataType: string
+		lineageTag: acfa9c1d-d064-43ed-ac1f-2aa85d2bd811
+		summarizeBy: none
+		sourceColumn: autopulse_renewal
+
+		annotation SummarizationSetBy = Automatic
+
+	column quote_generated
+		dataType: string
+		lineageTag: f9e71681-7623-4aa5-b8eb-9bf478aed87c
+		summarizeBy: none
+		sourceColumn: quote_generated
+
+		annotation SummarizationSetBy = Automatic
+
+	column whatsapp_renewal
+		dataType: string
+		lineageTag: 61ac6d82-01b4-40a5-a9e0-b6589bdd3cd5
+		summarizeBy: none
+		sourceColumn: whatsapp_renewal
+
+		annotation SummarizationSetBy = Automatic
+
+	column campignname
+		dataType: string
+		lineageTag: 951bca4b-f90c-411d-8624-ee82e28d39c5
+		summarizeBy: none
+		sourceColumn: campignname
+
+		annotation SummarizationSetBy = Automatic
+
+	column renewal_type
+		dataType: string
+		lineageTag: 6f61f526-8815-4fd7-a0c9-9ce7edf66b28
+		summarizeBy: none
+		sourceColumn: renewal_type
+
+		annotation SummarizationSetBy = Automatic
+
+	column followupdate
+		dataType: dateTime
+		formatString: Long Date
+		lineageTag: 287024ee-3cf2-4417-b5e8-c595a5bd8519
+		summarizeBy: none
+		sourceColumn: followupdate
+
+		variation Variation
+			isDefault
+			relationship: a1edbcee-6e61-47b3-b6e8-2f1d6389a9b4
+			defaultHierarchy: LocalDateTable_52bcdcbe-ebb6-4046-9b80-5114016fef8d.'Date Hierarchy'
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column tertiary_disposition
+		dataType: string
+		lineageTag: 5e30538e-8dbd-426d-b4f1-543adfd533bf
+		summarizeBy: none
+		sourceColumn: tertiary_disposition
+
+		annotation SummarizationSetBy = Automatic
+
+	column channel
+		dataType: string
+		lineageTag: e2fbf335-c26a-48f3-9137-03943ba0362b
+		summarizeBy: none
+		sourceColumn: channel
+
+		annotation SummarizationSetBy = Automatic
+
+	column premium_value
+		dataType: int64
+		formatString: 0
+		lineageTag: 5ff1b991-b16b-441d-8f46-b3b0e78621be
+		summarizeBy: sum
+		sourceColumn: premium_value
+
+		annotation SummarizationSetBy = Automatic
+
+	column whatsapp_premium
+		dataType: string
+		lineageTag: cdc1ed5f-6321-42ae-98e7-fbc65ea9fb2a
+		summarizeBy: none
+		sourceColumn: whatsapp_premium
+
+		annotation SummarizationSetBy = Automatic
+
+	column ZoneManager
+		dataType: string
+		lineageTag: ef12b244-b00d-4cbb-88b8-ef4efc3eb742
+		summarizeBy: none
+		sourceColumn: ZoneManager
+
+		annotation SummarizationSetBy = Automatic
+
+	column StateManager
+		dataType: string
+		lineageTag: bf845e5e-f2aa-4803-8163-9c58a140c897
+		summarizeBy: none
+		sourceColumn: StateManager
+
+		annotation SummarizationSetBy = Automatic
+
+	column AreaManager
+		dataType: string
+		lineageTag: 02115787-e3ac-4584-8438-eaf993f747e7
+		summarizeBy: none
+		sourceColumn: AreaManager
+
+		annotation SummarizationSetBy = Automatic
+
+	column ChannelManager
+		dataType: string
+		lineageTag: cd09f417-b65b-44f5-aac9-5f27371fde7c
+		summarizeBy: none
+		sourceColumn: ChannelManager
+
+		annotation SummarizationSetBy = Automatic
+
+	column ChannelHead
+		dataType: string
+		lineageTag: bf039672-4ebb-4d2b-a760-059b91d14efe
+		summarizeBy: none
+		sourceColumn: ChannelHead
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Month No'
+		dataType: int64
+		formatString: 0
+		lineageTag: 1cac6d4a-8cd4-4d26-b1ae-f06ca4694e4c
+		summarizeBy: sum
+		sourceColumn: Month No
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Outcome Group' =
+			
+			VAR _d = 'RAW DATA(JAN-SEPT)'[lastcalldisposition]
+			RETURN
+			    SWITCH (
+			        TRUE (),
+			        _d IN { "Confirmed", "Book Appointment" }, "Positive",
+			        _d = "Call Me Later", "Follow-up",
+			        _d IN { "Ringing No response", "Busy", "Switched Off / Unreachable", "Invalid Number", "Wrong Number" }, "Not reachable",
+			        _d = "Renewal Not Required", "Not required",
+			        _d IN { "Cancelled", "NoOther" }, "Other",
+			        BLANK ()
+			    )
+		lineageTag: 5a370a8d-ad79-4d35-b4a4-766c195bc2d3
+		summarizeBy: none
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Outcome Order' =
+			
+			VAR _d = 'RAW DATA(JAN-SEPT)'[lastcalldisposition]
+			RETURN
+			    SWITCH (
+			        TRUE (),
+			        _d IN { "Confirmed", "Book Appointment" }, 1,
+			        _d = "Call Me Later", 2,
+			        _d IN { "Ringing No response", "Busy", "Switched Off / Unreachable", "Invalid Number", "Wrong Number" }, 3,
+			        _d = "Renewal Not Required", 4,
+			        _d IN { "Cancelled", "NoOther" }, 5,
+			        BLANK ()
+			    )
+		formatString: 0
+		lineageTag: 17d21aa4-2087-4761-9d24-98e3ee2a53b8
+		summarizeBy: sum
+
+		annotation SummarizationSetBy = Automatic
+
+	partition 'RAW DATA(JAN-SEPT)' = m
+		mode: import
+		source =
+				let
+				    Source = Csv.Document(File.Contents("D:\POWER BI\RAW DATA(JAN-SEPT).csv"),[Delimiter=",", Columns=38, Encoding=1252, QuoteStyle=QuoteStyle.None]),
+				    #"Promoted Headers" = Table.PromoteHeaders(Source, [PromoteAllScalars=true]),
+				    #"Changed Type" = Table.TransformColumnTypes(#"Promoted Headers",{{"SourceFile", type text}, {"DueMonth", type text}, {"assigned_id", Int64.Type}, {"assigneddate", type date}, {"vehicle_id", Int64.Type}, {"policyduedate", type date}, {"cp_code", Int64.Type}, {"is_dropped", type text}, {"attempt_count", Int64.Type}, {"firstcalldate", type date}, {"lastcalldate", type date}, {"firstcalldisposition", type text}, {"lastcalldisposition", type text}, {"calldispositiondata_id", Int64.Type}, {"username", type text}, {"dealercode", Int64.Type}, {"DisplayName", type text}, {"dealerstate", type text}, {"dealerzone", type text}, {"dealercity", type text}, {"callstatus", type text}, {"is_renewed", type text}, {"Link_sent", type text}, {"autopulse_renewal", type text}, {"quote_generated", type text}, {"whatsapp_renewal", type text}, {"campignname", type text}, {"renewal_type", type text}, {"followupdate", type date}, {"tertiary_disposition", type text}, {"channel", type text}, {"premium_value", Int64.Type}, {"whatsapp_premium", type text}, {"ZoneManager", type text}, {"StateManager", type text}, {"AreaManager", type text}, {"ChannelManager", type text}, {"ChannelHead", type text}}),
+				    #"Removed Columns" = Table.RemoveColumns(#"Changed Type",{"SourceFile"}),
+				    #"Changed Type1" = Table.TransformColumnTypes(#"Removed Columns",{{"assigneddate", type date}}),
+				    #"Added Custom" = Table.AddColumn(#"Changed Type1", "Month No", each List.PositionOf({"January","February","March","April","May","June","July","August","September","October","November","December"}, [DueMonth]) + 1),
+				    #"Changed Type2" = Table.TransformColumnTypes(#"Added Custom",{{"Month No", Int64.Type}}),
+				    Custom1 = Table.ReplaceValue(
+				    #"Changed Type2",
+				    each [autopulse_renewal],
+				    each if [premium_value] <> null and Text.Upper([autopulse_renewal]) = "NO"
+				         then "YES"
+				         else [autopulse_renewal],
+				    Replacer.ReplaceValue,
+				    {"autopulse_renewal"}
+				),
+				    #"Added Custom1" = Table.AddColumn(Custom1, "Custom", each if [lastcalldisposition] = null or [lastcalldisposition] = "" then null
+				else if List.Contains({"Confirmed", "Book Appointment"}, [lastcalldisposition]) then "Positive"
+				else if [lastcalldisposition] = "Call Me Later" then "Follow-up"
+				else if [lastcalldisposition] = "Renewal Not Required" then "Not required"
+				else if List.Contains({"Ringing No response", "Busy", "Switched Off / Unreachable", "Invalid Number", "Wrong Number"}, [lastcalldisposition]) then "Not reachable"
+				else "Other"),
+				    #"Renamed Columns" = Table.RenameColumns(#"Added Custom1",{{"Custom", "Outcome Group"}}),
+				    #"Added Custom2" = Table.AddColumn(#"Renamed Columns", "Outcome Order", each if [Outcome Group] = "Positive" then 1
+				else if [Outcome Group] = "Follow-up" then 2
+				else if [Outcome Group] = "Not reachable" then 3
+				else if [Outcome Group] = "Not required" then 4
+				else if [Outcome Group] = "Other" then 5
+				else null),
+				    #"Changed Type3" = Table.TransformColumnTypes(#"Added Custom2",{{"Outcome Order", Int64.Type}}),
+				    #"Removed Columns1" = Table.RemoveColumns(#"Changed Type3",{"Outcome Group", "Outcome Order"})
+				in
+				    #"Removed Columns1"
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table
+

@@ -1,0 +1,25 @@
+relationship 6cf15e39-33b9-4d0d-8c5a-74ee0588a733
+	joinOnDateBehavior: datePartOnly
+	fromColumn: 'RAW DATA(JAN-SEPT)'.assigneddate
+	toColumn: LocalDateTable_b5afb708-0737-40da-82e4-5663443197ea.Date
+
+relationship b16580c5-ccd9-4197-9460-f52249313d90
+	joinOnDateBehavior: datePartOnly
+	fromColumn: 'RAW DATA(JAN-SEPT)'.policyduedate
+	toColumn: LocalDateTable_800c8c05-4fa2-4f4d-9f76-44aeb60e0374.Date
+
+relationship 24e54510-9ca9-4677-bb8d-0eeadd51ffb3
+	joinOnDateBehavior: datePartOnly
+	fromColumn: 'RAW DATA(JAN-SEPT)'.firstcalldate
+	toColumn: LocalDateTable_5418985d-5dec-4dff-a178-a0136325e889.Date
+
+relationship d7e502a1-f44c-4723-9cf7-2dfcf25d76a2
+	joinOnDateBehavior: datePartOnly
+	fromColumn: 'RAW DATA(JAN-SEPT)'.lastcalldate
+	toColumn: LocalDateTable_1dd68120-5586-43f5-ae70-cc71857d3814.Date
+
+relationship a1edbcee-6e61-47b3-b6e8-2f1d6389a9b4
+	joinOnDateBehavior: datePartOnly
+	fromColumn: 'RAW DATA(JAN-SEPT)'.followupdate
+	toColumn: LocalDateTable_52bcdcbe-ebb6-4046-9b80-5114016fef8d.Date
+

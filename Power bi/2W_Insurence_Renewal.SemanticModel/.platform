@@ -1,0 +1,11 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "SemanticModel",
+    "displayName": "2W_Insurence_Renewal"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "4d3dc39a-62fa-435b-8b1c-7dde3090dd19"
+  }
+}

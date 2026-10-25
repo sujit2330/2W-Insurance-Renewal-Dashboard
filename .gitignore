@@ -1,0 +1,20 @@
+# Power BI local files created when you save as a Power BI project (.pbip)
+**/.pbi/localSettings.json
+**/.pbi/cache.abf
+
+# Full raw data: too large for GitHub (291 MB) and confidential
+data/*.csv
+!data/sample_data.csv
+
+# A .pbix file stores all the data inside it. Keep it out of a public repository.
+# For a private repository, delete this line to include the .pbix.
+*.pbix
+
+# Power BI backup and temporary files
+*.pbix.bak
+~$*
+
+# Operating system files
+.DS_Store
+Thumbs.db
+desktop.ini

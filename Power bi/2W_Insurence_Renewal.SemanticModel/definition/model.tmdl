@@ -1,0 +1,25 @@
+model Model
+	culture: en-US
+	defaultPowerBIDataSourceVersion: powerBI_V3
+	sourceQueryCulture: en-IN
+	valueFilterBehavior: independent
+	dataAccessOptions
+		legacyRedirects
+		returnErrorValuesAsNull
+
+annotation __PBI_TimeIntelligenceEnabled = 1
+
+annotation PBI_QueryOrder = ["RAW DATA(JAN-SEPT)"]
+
+annotation PBI_ProTooling = ["DevMode"]
+
+ref table 'RAW DATA(JAN-SEPT)'
+ref table DateTableTemplate_abc0daa3-1ca1-46b0-8722-930cee0098b5
+ref table LocalDateTable_b5afb708-0737-40da-82e4-5663443197ea
+ref table LocalDateTable_800c8c05-4fa2-4f4d-9f76-44aeb60e0374
+ref table LocalDateTable_5418985d-5dec-4dff-a178-a0136325e889
+ref table LocalDateTable_1dd68120-5586-43f5-ae70-cc71857d3814
+ref table LocalDateTable_52bcdcbe-ebb6-4046-9b80-5114016fef8d
+
+ref cultureInfo en-US
+
